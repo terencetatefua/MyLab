@@ -59,55 +59,11 @@ pipeline{
                         echo "GroupID is '${GroupId}'"
                         echo "Name is '${Name}'"
                     }
-                }
-
-        // Stage 5 : Deploying the build artifact to Apache Tomcat
-        stage ('Deploy to Tomcat'){
-            steps {
-                echo "Deploying ...."
-                sshPublisher(publishers: 
-                [sshPublisherDesc(
-                    configName: 'Ansible_Controller', 
-                    transfers: [
-                        sshTransfer(
-                                cleanRemote:false,
-                                execCommand: 'ansible-playbook /opt/playbooks/downloadanddeploy_as_tomcat_user.yaml -i /opt/playbooks/hosts',
-                                execTimeout: 120000
-                        )
-                    ], 
-                    usePromotionTimestamp: false, 
-                    useWorkspaceInPromotion: false, 
-                    verbose: false)
-                    ])
-            
-            }
-        }
-
-    // Stage 6 : Deploying the build artifact to Docker
-        stage ('Deploy to Docker'){
-            steps {
-                echo "Deploying ...."
-                sshPublisher(publishers: 
-                [sshPublisherDesc(
-                    configName: 'Ansible_Controller', 
-                    transfers: [
-                        sshTransfer(
-                                cleanRemote:false,
-                                execCommand: 'ansible-playbook /opt/playbooks/downloadanddeploy_docker.yaml -i /opt/playbooks/hosts',
-                                execTimeout: 120000
-                        )
-                    ], 
-                    usePromotionTimestamp: false, 
-                    useWorkspaceInPromotion: false, 
-                    verbose: false)
-                    ])
-            
+                } 
             }
         }
 
 
 
 
-    }
 
-}
