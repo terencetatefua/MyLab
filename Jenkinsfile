@@ -2,9 +2,14 @@ pipeline{
     //Directives
     agent any
     tools {
-        maven 'maven'     
-    }    
-       
+        maven 'maven'
+    }
+    environment{
+       ArtifactId = readMavenPom().getArtifactId()
+       Version = readMavenPom().getVersion()
+       Name = readMavenPom().getName()
+       GroupId = readMavenPom().getGroupId()
+    }
     stages {
         // Specify various stage with in stages
 
@@ -22,21 +27,87 @@ pipeline{
 
             }
         }
-        
-         //stage3 : publish the artifacts to nexus
+
+        // Stage3 : Publish the artifacts to Nexus
         stage ('Publish to Nexus'){
             steps {
-                nexusArtifactUploader artifacts: [[artifactId: 'VinayDevOpsLab', classifier: '', file: 'target/VinayDevOpsLab-0.0.4-SNAPSHOT.war', type: 'war']], credentialsId: '43c02c68-b437-4e2d-8b92-8fcfda0799d5', groupId: 'com.vinaysdevopslab', nexusUrl: '172.20.10.172:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'TerenceDevopsLab-SNAPSHOT', version: '0.0.4-SNAPSHOT'
-            }    
-        }   
-        // Stage3 : Deploying
-        stage ('deploying'){
-            steps {
-                echo ' deploying......'
+                script {
 
+                def NexusRepo = Version.endsWith("SNAPSHOT") ? "TerenceDevopsLab-SNAPSHOT" : "TerenceDevopsLab-RELEASE"
+
+                nexusArtifactUploader artifacts: 
+                [[artifactId: "${ArtifactId}", 
+                classifier: '', 
+                file: "target/${ArtifactId}-${Version}.war", 
+                type: 'war']], 
+                credentialsId: '35e9b26e-269a-4804-a70d-6b2ec7a608ce', 
+                groupId: "${GroupId}", 
+                nexusUrl: '172.20.10.172:8081', 
+                nexusVersion: 'nexus3', 
+                protocol: 'http', 
+                repository: "${NexusRepo}", 
+                version: "${Version}"
+             }
             }
-       }
-        
+        }
+
+        // Stage 4 : Print some information
+        stage ('Print Environment variables'){
+                    steps {
+                        echo "Artifact ID is '${ArtifactId}'"
+                        echo "Version is '${Version}'"
+                        echo "GroupID is '${GroupId}'"
+                        echo "Name is '${Name}'"
+                    }
+                }
+
+        // Stage 5 : Deploying the build artifact to Apache Tomcat
+        stage ('Deploy to Tomcat'){
+            steps {
+                echo "Deploying ...."
+                sshPublisher(publishers: 
+                [sshPublisherDesc(
+                    configName: 'Ansible_Controller', 
+                    transfers: [
+                        sshTransfer(
+                                cleanRemote:false,
+                                execCommand: 'ansible-playbook /opt/playbooks/downloadanddeploy_as_tomcat_user.yaml -i /opt/playbooks/hosts',
+                                execTimeout: 120000
+                        )
+                    ], 
+                    usePromotionTimestamp: false, 
+                    useWorkspaceInPromotion: false, 
+                    verbose: false)
+                    ])
+            
+            }
+        }
+
+    // Stage 6 : Deploying the build artifact to Docker
+        stage ('Deploy to Docker'){
+            steps {
+                echo "Deploying ...."
+                sshPublisher(publishers: 
+                [sshPublisherDesc(
+                    configName: 'Ansible_Controller', 
+                    transfers: [
+                        sshTransfer(
+                                cleanRemote:false,
+                                execCommand: 'ansible-playbook /opt/playbooks/downloadanddeploy_docker.yaml -i /opt/playbooks/hosts',
+                                execTimeout: 120000
+                        )
+                    ], 
+                    usePromotionTimestamp: false, 
+                    useWorkspaceInPromotion: false, 
+                    verbose: false)
+                    ])
+            
+            }
+        }
+
+
+
+
     }
-    
-  }
+
+}
